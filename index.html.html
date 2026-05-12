@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trujillo — Mapa de la Memoria</title>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<!-- Leaflet JS en <head> para garantizar que L esté disponible al ejecutar el script -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Source+Serif+4:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --rojo:          #B5372A;
+    --rojo-claro:    #F5CBC3;
+    --verde:         #17654C;
+    --verde-claro:   #B0DDD4;
+    --morado:        #4A3E96;
+    --morado-claro:  #D0CBF5;
+    --gris:          #5C5A54;
+    --gris-claro:    #D4D0C7;
+    --crema:         #F6F1E7;
+    --tinta:         #1A1814;
+    --borde:         #DDD8CC;
+    --panel:         #FDFAF5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Source Serif 4', serif;
+    background: var(--crema);
+    color: var(--tinta);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── CABECERA ── */
+  #header {
+    background: var(--tinta);
+    color: var(--crema);
+    padding: 11px 20px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 3px solid var(--rojo);
+    flex-shrink: 0;
+    gap: 16px;
+  }
+  #header-left h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.015em;
+    line-height: 1.25;
+  }
+  #header-left p {
+    font-size: 11.5px;
+    color: #9A978F;
+    font-weight: 300;
+    margin-top: 2px;
+  }
+  #header-authors {
+    text-align: right;
+    flex-shrink: 0;
+  }
+  #header-authors .label {
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6E6C66;
+    margin-bottom: 3px;
+  }
+  #header-authors .names {
+    font-size: 11px;
+    color: #C8C5BE;
+    line-height: 1.6;
+    font-style: italic;
+  }
+
+  /* ── LAYOUT ── */
+  #layout {
+    display: grid;
+    grid-template-columns: 1fr 330px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── MAPA ── */
+  #map { width: 100%; height: 100%; }
+
+  /* ── PANEL ── */
+  #panel {
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border-left: 1px solid var(--borde);
+    overflow: hidden;
+  }
+  #panel-top {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--borde);
+    flex-shrink: 0;
+  }
+  #panel-top h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--tinta);
+    line-height: 1.3;
+  }
+  #panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 18px;
+  }
+  #panel-body::-webkit-scrollbar { width: 4px; }
+  #panel-body::-webkit-scrollbar-thumb { background: #CCC; border-radius: 4px; }
+
+  /* ── BIENVENIDA ── */
+  #welcome-text {
+    font-size: 13px;
+    line-height: 1.75;
+    color: #4A4740;
+  }
+  .intro-kicker {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--rojo);
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .intro-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 17px;
+    color: var(--tinta);
+    margin-bottom: 10px;
+    font-style: italic;
+    line-height: 1.3;
+  }
+  .legend-list {
+    list-style: none;
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .legend-list li {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12px;
+    color: #5A5750;
+  }
+  .source-note {
+    margin-top: 16px;
+    font-size: 11px;
+    color: #999;
+    border-top: 1px solid var(--borde);
+    padding-top: 10px;
+    line-height: 1.6;
+    font-style: italic;
+  }
+
+  /* ── TARJETAS ── */
+  .card { display: none; animation: aparecer 0.22s ease; }
+  .card.activa { display: block; }
+  @keyframes aparecer {
+    from { opacity: 0; transform: translateY(5px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .etiqueta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+  }
+  .et-violencia { background: var(--rojo-claro);  color: #8A2010; }
+  .et-afavit    { background: var(--verde-claro); color: var(--verde); }
+  .et-memoria   { background: var(--morado-claro);color: var(--morado); }
+  .et-zona      { background: var(--gris-claro);  color: var(--gris); }
+
+  .card-fecha {
+    font-size: 11px;
+    color: var(--rojo);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .card-titulo {
+    font-family: 'Playfair Display', serif;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 10px;
+    color: var(--tinta);
+  }
+  .card-desc {
+    font-size: 13px;
+    line-height: 1.78;
+    color: #3E3C38;
+    margin-bottom: 14px;
+  }
+  .card-detalle {
+    font-size: 11.5px;
+    border-top: 1px solid var(--borde);
+    padding-top: 10px;
+    color: #6E6C66;
+    line-height: 1.75;
+  }
+  .card-detalle strong { color: var(--tinta); font-weight: 500; }
+
+  /* ── LEYENDA ── */
+  #leyenda {
+    padding: 11px 18px;
+    border-top: 1px solid var(--borde);
+    flex-shrink: 0;
+    background: #F0EBE0;
+  }
+  #leyenda h3 {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #999;
+    margin-bottom: 7px;
+    font-weight: 500;
+  }
+  .ley-items {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px 8px;
+  }
+  .ley-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10.5px;
+    color: #5A5750;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── POPUP ── */
+  .leaflet-popup-content-wrapper {
+    border-radius: 6px !important;
+    border: 1px solid #CCC !important;
+    box-shadow: 0 3px 14px rgba(0,0,0,0.18) !important;
+    font-family: 'Source Serif 4', serif !important;
+  }
+  .leaflet-popup-content { font-size: 12px !important; line-height: 1.5 !important; }
+  .popup-titulo { font-family: 'Playfair Display', serif; font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .popup-fecha  { font-size: 11px; color: #B5372A; margin-bottom: 2px; font-weight: 500; }
+  .popup-sub    { font-size: 11px; color: #888; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="header-left">
+    <h1>Trujillo — Mapa de la Memoria, 1986–1994</h1>
+    <p>Haz clic en un punto del mapa para explorar los hechos documentados</p>
+  </div>
+  <div id="header-authors">
+    <div class="label">Autores</div>
+    <div class="names">
+      Nicolás Cardona Ramírez<br>
+      Sebastián Pelaez Chica<br>
+      Andrés Felipe Caicedo Mendez
+    </div>
+  </div>
+</div>
+
+<div id="layout">
+  <div id="map"></div>
+
+  <div id="panel">
+    <div id="panel-top">
+      <h2 id="panel-titulo">Territorio, Crimen y Memoria</h2>
+    </div>
+
+    <div id="panel-body">
+
+      <!-- BIENVENIDA -->
+      <div id="card-bienvenida" class="card activa">
+        <div id="welcome-text">
+          <div class="intro-kicker">Informe del Grupo de Memoria Histórica</div>
+          <div class="intro-title">La masacre interminable de Trujillo</div>
+          <p>Entre 1986 y 1994, en los municipios de <strong>Trujillo, Riofrío y Bolívar</strong> (Valle del Cauca) se perpetraron 245 crímenes de homicidio, desaparición forzada y tortura, producto de una alianza entre narcotraficantes y agentes del Estado.</p>
+          <p style="margin-top:9px">Selecciona un marcador en el mapa para conocer lo que ocurrió en ese lugar.</p>
+          <ul class="legend-list">
+            <li><span class="dot" style="background:#B5372A"></span> Sitios del crimen y represión</li>
+            <li><span class="dot" style="background:#17654C"></span> AFAVIT y reconocimiento</li>
+            <li><svg width="14" height="14" viewBox="0 0 24 24" style="flex-shrink:0"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="#C8900A" stroke="white" stroke-width="1.5"/></svg> Parque Monumento / AFAVIT</li>
+            <li><span class="dot" style="background:#6B6860"></span> Municipios del triángulo</li>
+          </ul>
+          <div class="source-note">Fuente: <em>Trujillo: Una tragedia que no cesa.</em> Grupo de Memoria Histórica, CNRR, 2008.</div>
+        </div>
+      </div>
+
+      <!-- 1. LA SONORA -->
+      <div id="card-sonora" class="card">
+        <div class="etiqueta et-violencia">Sitio del crimen</div>
+        <div class="card-fecha">29 de marzo – 1 de abril de 1990</div>
+        <div class="card-titulo">Corregimiento La Sonora — La emboscada y las desapariciones</div>
+        <div class="card-desc">La larga cadena de crímenes tuvo su momento más crítico entre marzo y abril de 1990, cuando los hombres de "Don Diego" desaparecieron a varias personas en el corregimiento La Sonora. En la noche del 31 de marzo al 1 de abril de 1990, una "caravana de la muerte" conformada por uniformados y civiles cortó el fluido eléctrico e irrumpió en los hogares, sacando forzosamente a al menos diez personas, entre ellas la enfermera e indígena Ester Cayapú Tróchez, líder comunitaria. El 29 de marzo había ocurrido la emboscada del ELN al Ejército en la vereda Playa Alta, que detonó la represalia. Este corregimiento, con apenas 650 habitantes, concentró 32 víctimas —la mayor proporción de toda la masacre. Rutas del Conflicto</div>
+        <div class="card-detalle">
+          <strong>Víctimas:</strong> Ramiro Velásquez, Arnoldo Cardona, José Vicente Gómez, Arnulfo y Fernando Arias Prado, Rigoberto y Everth Prado, Esther Cayapú Trochez, Ricardo Mejía, Fernando Fernández.<br>
+          <strong>Responsables:</strong> Mayor Alirio Urueña (Ejército), alias "El Tío" (paramilitar), Henry Loaiza "El Alacrán".<br>
+          <strong>Estado:</strong> Desaparecidos — cuerpos no recuperados.
+        </div>
+      </div>
+
+      <!-- 2. HACIENDA LAS VIOLETAS -->
+      <div id="card-violetas" class="card">
+        <div class="etiqueta et-violencia">Centro clandestino de tortura</div>
+        <div class="card-fecha">1–2 de abril de 1990</div>
+        <div class="card-titulo">Hacienda Las Violetas — "La Peladora"</div>
+        <div class="card-desc">Propiedad del narcotraficante Diego Montoya "Don Diego", ubicada en la vía entre los corregimientos de Andinápolis (Trujillo) y Salónica (Riofrío). Fue el primer centro clandestino de tortura y exterminio. Las víctimas eran llevadas con ojos vendados a un sitio llamado "La Peladora". Las torturas incluían agua a presión, soplete de gasolina, navajas, tenazas, martillos, sal en heridas abiertas, y finalmente la motosierra para descuartizar vivos a los detenidos. Los cuerpos se metían en costales y se arrojaban al río Cauca. Aquí fueron llevados los pobladores de La Sonora y los ebanistas de Trujillo.</div>
+        <div class="card-detalle">
+          <strong>Propietario:</strong> Diego Montoya, alias "Don Diego"<br>
+          <strong>Ubicación exacta:</strong> Vía Andinápolis–Salónica, entre Trujillo y Riofrío<br>
+          <strong>Crímenes:</strong> Tortura, homicidio, desaparición forzada — 1–2 de abril de 1990
+        </div>
+      </div>
+
+      <!-- 3. EBANISTAS / PLAZA -->
+      <div id="card-ebanistas" class="card">
+        <div class="etiqueta et-violencia">Sitio del crimen</div>
+        <div class="card-fecha">2 de abril de 1990</div>
+        <div class="card-titulo">Taller de ebanistería, esquina de la plaza — Desaparición de los ebanistas</div>
+        <div class="card-desc">En la mañana del 2 de abril, el grupo armado llegó al casco urbano de Trujillo. Irrumpió en un taller de ebanistería ubicado en la esquina de la plaza principal —parte de las cooperativas impulsadas por el padre Tiberio Fernández desde su parroquia— y se llevó por la fuerza a Herbey Vargas Londoño, José Erley Vargas Londoño y José Alirio Granada. En un taller cercano también retuvieron a José Agustín Lozano y Orlando Vargas Londoño. Fueron conducidos a instalaciones de la Sijin en Cali, luego a la Hacienda Las Violetas, donde fueron torturados y asesinados igual que las víctimas de La Sonora.</div>
+        <div class="card-detalle">
+          <strong>Víctimas:</strong> Herbey, José Erley y Orlando Vargas Londoño; José Alirio Granada; José Agustín Lozano<br>
+          <strong>Presentes en las torturas:</strong> Mayor Urueña, Henry Loaiza "El Alacrán", Diego Montoya "Don Diego"<br>
+          <strong>Estado:</strong> Desaparecidos — cuerpos no recuperados
+        </div>
+      </div>
+
+      <!-- 4. HACIENDA VILLA PAOLA -->
+      <div id="card-villapaola" class="card">
+        <div class="etiqueta et-violencia">Centro clandestino de tortura</div>
+        <div class="card-fecha">8–17 de abril de 1990 / 5 de mayo de 1991</div>
+        <div class="card-titulo">Hacienda Villa Paola — El infierno del Alacrán</div>
+        <div class="card-desc">Propiedad de Henry Loaiza Ceballos "El Alacrán", ubicada en el occidente de Trujillo, cerca del río Cauca. Fue el segundo y principal centro de exterminio, elegido por su cercanía al río para facilitar la eliminación de cuerpos. En una ramada cercana al río se instaló una "mesa de suplicios". Aquí fueron torturados y asesinados Juan Giraldo y acompañantes (8 de abril), el padre Tiberio y sus tres acompañantes (17 de abril de 1990), y finalmente el testigo Daniel Arcila Cardona (5 de mayo de 1991). Una grabación clandestina —hecha antes de que su autor también fuera asesinado— registró los últimos suplicios de Arcila.</div>
+        <div class="card-detalle">
+          <strong>Propietario:</strong> Henry Loaiza Ceballos, alias "El Alacrán"<br>
+          <strong>Víctimas notables:</strong> Padre Tiberio Fernández, Ana Isabel Giraldo, Daniel Arcila Cardona<br>
+          <strong>Razón de elección:</strong> Proximidad al río Cauca para eliminar los cuerpos
+        </div>
+      </div>
+
+      <!-- 5. IGLESIA / PADRE TIBERIO -->
+      <div id="card-tiberio" class="card">
+        <div class="etiqueta et-violencia">Asesinato simbólico</div>
+        <div class="card-fecha">17 de abril de 1990</div>
+        <div class="card-titulo">Iglesia San Pedro Apóstol — El padre Tiberio Fernández Mafla</div>
+        <div class="card-desc">El padre Tiberio era arcipreste de la región y motor de la organización campesina: desde su parroquia impulsó cooperativas, talleres de ebanistería y liderazgo comunitario. El 16 de abril viajó a Tuluá a oficiar las honras fúnebres de su amigo Abundio Espinosa, asesinado ese mismo día. De regreso, el 17 de abril, fue interceptado junto a su sobrina Ana Isabel Giraldo (18 años), José Norbey Galeano y Óscar Pulido Rozo. Los cuatro fueron conducidos a la Hacienda Villa Paola, donde el padre fue obligado a presenciar el sufrimiento de cada acompañante antes de ser castrado y descuartizado. Su cadáver fue rescatado del río Cauca en la Inspección de Policía El Hobo (Roldanillo), identificado por un platino en su pierna. El campesino que lo rescató fue asesinado después. El padre Tiberio se convirtió en símbolo de toda la masacre.</div>
+        <div class="card-detalle">
+          <strong>Víctimas:</strong> Padre Tiberio Fernández Mafla; Ana Isabel Giraldo (sobrina, 18 años); José Norbey Galeano; Óscar Pulido Rozo<br>
+          <strong>Único cuerpo recuperado:</strong> El del padre, en Roldanillo (río Cauca abajo)<br>
+          <strong>Impacto:</strong> 60 sacerdotes de todo Colombia en sus honras fúnebres. Excomunión canónica de los asesinos. Viacrucis en el Parque Monumento.
+        </div>
+      </div>
+
+      <!-- 6. RÍO CAUCA -->
+      <div id="card-rio" class="card">
+        <div class="etiqueta et-violencia">Fosa común</div>
+        <div class="card-fecha">1990–1994 (y años anteriores)</div>
+        <div class="card-titulo">Río Cauca — La fosa común de la masacre</div>
+        <div class="card-desc">El río Cauca fue usado de manera sistemática para deshacerse de los cadáveres. Los victimarios evisceraban los cuerpos para que no flotaran y los descuartizaban para impedir su identificación. Aun así, los cuerpos aparecían en las orillas, denunciando en silencio el horror. El campesino que rescató el cadáver del padre Tiberio pagó ese acto de humanidad con su propia vida. Entre 1990 y 1999 el Instituto Nacional de Medicina Legal practicó 547 necropsias a cadáveres recuperados del Cauca entre Jamundí y Aguadas (Caldas). De los 28 desaparecidos en los hechos centrales de 1990, solo 4 cuerpos fueron recuperados.</div>
+        <div class="card-detalle">
+          <strong>Función criminal:</strong> Fosa común para ocultar evidencias<br>
+          <strong>Cuerpos recuperados (hechos de 1990):</strong> Solo 4 de 28 desaparecidos<br>
+          <strong>Consecuencia:</strong> Las familias nunca pudieron hacer un duelo. La incertidumbre fue, en sí misma, una forma prolongada de tortura.
+        </div>
+      </div>
+
+      <!-- 7. JUAN GIRALDO -->
+      <div id="card-giraldo" class="card">
+        <div class="etiqueta et-violencia">Asesinato político</div>
+        <div class="card-fecha">8 de abril de 1990</div>
+        <div class="card-titulo">Zona rural norte — Juan Giraldo Molina, dirigente político</div>
+        <div class="card-desc">Juan Giraldo Molina, dirigente político local, fue señalado durante las torturas de los ebanistas como colaborador de la guerrilla. El 8 de abril fue retenido en zona rural junto a su sobrino Freddy Rodríguez Giraldo y el mecánico Danilo García. Sus cadáveres fueron rescatados del río Cauca los días 10 y 11 de abril, con mutilaciones y señales de tortura. Era uno de los pocos personajes con visibilidad pública cuya muerte llamó la atención más allá de Trujillo. Sus restos y los del padre Tiberio son dos de los solo cuatro cuerpos recuperados de los 28 desaparecidos en los hechos centrales.</div>
+        <div class="card-detalle">
+          <strong>Víctimas:</strong> Juan Giraldo Molina, Freddy Rodríguez Giraldo, Danilo García Ortiz<br>
+          <strong>Hallazgo:</strong> Cadáveres en el río Cauca, 10 y 11 de abril de 1990<br>
+          <strong>Traslado:</strong> Llevados a Hacienda Villa Paola, presidido por el Alacrán
+        </div>
+      </div>
+
+      <!-- 8. MARCHA CAMPESINA -->
+      <div id="card-marcha" class="card">
+        <div class="etiqueta et-violencia">Represión social</div>
+        <div class="card-fecha">29 de abril de 1989</div>
+        <div class="card-titulo">Concejo Municipal de Trujillo — La marcha campesina reprimida</div>
+        <div class="card-desc">Una multitudinaria marcha campesina recorrió Trujillo. Los organismos de inteligencia la encuadraron como actividad subversiva (parte del "Plan Pesca" y el "Plan Democracia"). Esther Cayapú Trochez —enfermera de La Sonora, asesinada al año siguiente— se enfrentó a un agente que golpeaba brutalmente a su hijo. El comandante del ejército, al recibir a las líderes de la marcha en el concejo municipal, insultó a una maestra con comentarios sexuales degradantes. Los participantes quedaron marcados como "auxiliadores del ELN" y fueron convertidos en blancos de la masacre.</div>
+        <div class="card-detalle">
+          <strong>Operaciones del Ejército:</strong> "Plan Pesca" y "Plan Democracia"<br>
+          <strong>Consecuencia:</strong> Los participantes fueron señalados como guerrilleros y perseguidos sistemáticamente<br>
+          <strong>Contexto:</strong> Paro cívico regional de 1988; organización campesina de la ANUC
+        </div>
+      </div>
+
+      <!-- 9. DANIEL ARCILA -->
+      <div id="card-arcila" class="card">
+        <div class="etiqueta et-violencia">Testigo / Víctima</div>
+        <div class="card-fecha">1990 → 5 de mayo de 1991</div>
+        <div class="card-titulo">Plaza Principal — Daniel Arcila Cardona, el testigo silenciado</div>
+        <div class="card-desc">Daniel Arcila Cardona fue el informante del ejército que señaló a varios pobladores como guerrilleros, siendo testigo presencial de las torturas de La Sonora y de los ebanistas. Luego se convirtió en el testigo de excepción cuyas declaraciones ante la CISVT permitieron esclarecer los crímenes y lograr el primer reconocimiento de responsabilidad del Estado. Los victimarios intentaron desacreditarlo atacando su salud mental y la de su familia. El 5 de mayo de 1991, al regresar al casco urbano de Trujillo con Mauricio Castañeda, ambos fueron retenidos en la plaza principal y llevados a Villa Paola, donde fueron torturados y descuartizados vivos.</div>
+        <div class="card-detalle">
+          <strong>Rol:</strong> Informante del ejército / Testigo clave ante la CIDH<br>
+          <strong>Lugar de su muerte:</strong> Hacienda Villa Paola, mayo de 1991<br>
+          <strong>Legado:</strong> Sus declaraciones son el fundamento del reconocimiento estatal de 1995
+        </div>
+      </div>
+
+      <!-- 10. AFAVIT -->
+      <div id="card-afavit" class="card">
+        <div class="etiqueta et-afavit">★ Memoria y resistencia</div>
+        <div class="card-fecha">Fundada en 1995</div>
+        <div class="card-titulo">AFAVIT — Asociación de Familiares de Víctimas de Trujillo</div>
+        <div class="card-desc">Nació tras la publicación del Informe Final de la CISVT (1995), cuando las familias comenzaron a organizarse para exigir verdad, justicia y reparación. AFAVIT documentó 342 víctimas —el Estado reconocía inicialmente solo 34— y solicitó la creación del Comité de Evaluación de Casos de Trujillo. Ha liderado las peregrinaciones anuales al Parque Monumento, el acompañamiento psicosocial de las familias y el proceso ante la CIDH. Reconoce también como víctimas a quienes murieron de "pena moral": el dolor que mató a los que sobrevivieron. Sus integrantes han enfrentado amenazas constantes por su trabajo de memoria.</div>
+        <div class="card-detalle">
+          <strong>Rol:</strong> Documentación, memoria histórica, denuncia, litigio internacional<br>
+          <strong>Logro clave:</strong> Reconocimiento de responsabilidad del Estado colombiano, 1995<br>
+          <strong>Víctimas reconocidas por AFAVIT:</strong> 342 (vs. 34 del Estado; 245 cifra consensuada GMH)
+        </div>
+      </div>
+
+      <!-- 11. PARQUE MONUMENTO -->
+      <div id="card-parque" class="card">
+        <div class="etiqueta et-memoria">★ Lugar de memoria</div>
+        <div class="card-fecha">Inaugurado 2000–2002</div>
+        <div class="card-titulo">Parque Monumento a las Víctimas de los Hechos Violentos de Trujillo</div>
+        <div class="card-desc">Construido como medida de reparación simbólica ordenada por el Estado colombiano, impulsada por AFAVIT y la Comisión Intercongregacional Justicia y Paz. Alberga 235 osarios con los restos de víctimas identificadas, cada uno con el nombre e historia de una persona. El conjunto está dispuesto como un vía crucis, recuperando el imaginario religioso que rodea la figura del padre Tiberio Fernández. Es escenario de peregrinaciones anuales a las que asisten organizaciones de derechos humanos de Colombia y el exterior. El Grupo de Memoria Histórica lo describió como "una cosmogonía del sufrimiento y un panteón a sus aliados nacionales e internacionales en la resistencia".</div>
+        <div class="card-detalle">
+          <strong>Osarios:</strong> 235 (de 245 víctimas reconocidas; 10 no fatales no tienen osario)<br>
+          <strong>Impulsado por:</strong> AFAVIT y Comisión Intercongregacional Justicia y Paz<br>
+          <strong>Tipo:</strong> Reparación simbólica ordenada por el Estado colombiano — 2000–2002
+        </div>
+      </div>
+
+      <!-- 12. CISVT -->
+      <div id="card-cisvt" class="card">
+        <div class="etiqueta et-afavit">Reconocimiento estatal</div>
+        <div class="card-fecha">1995</div>
+        <div class="card-titulo">CISVT — El Estado acepta su responsabilidad</div>
+        <div class="card-desc">En 1995, como resultado del proceso ante la Comisión Interamericana de Derechos Humanos, el Estado colombiano creó la Comisión de Investigación de los Sucesos Violentos de Trujillo (CISVT). Fue un hito histórico: por primera vez el Estado colombiano aceptó formalmente su responsabilidad en crímenes de lesa humanidad cometidos con participación de agentes estatales. Sin embargo, el Estado solo reconoció 34 víctimas (los hechos de marzo–abril de 1990), mientras que las familias reclamaban más de 300. La discrepancia entre la memoria de las víctimas y el reconocimiento estatal es, según el GMH, una forma continua de violencia institucional.</div>
+        <div class="card-detalle">
+          <strong>Víctimas reconocidas por Estado:</strong> 34 (hechos del 29 mar–17 abr 1990)<br>
+          <strong>Víctimas reclamadas por AFAVIT:</strong> 342<br>
+          <strong>Cifra consensuada (GMH/CECT):</strong> 245 víctimas, 1986–1994
+        </div>
+      </div>
+
+      <!-- 13. RIOFRÍO -->
+      <div id="card-riofrio" class="card">
+        <div class="etiqueta et-zona">Municipio</div>
+        <div class="card-fecha">1986–1994</div>
+        <div class="card-titulo">Riofrío, Valle del Cauca</div>
+        <div class="card-desc">Municipio colindante con Trujillo y parte del triángulo geográfico de la masacre. En el corregimiento de Salónica (Riofrío), 20 de las 245 víctimas documentadas fueron asesinadas o desaparecidas. La Hacienda Las Violetas, principal centro de tortura, estaba ubicada en la vía entre Andinápolis (Trujillo) y Salónica (Riofrío). El cadáver del padre Tiberio fue rescatado en el municipio de Roldanillo, aguas abajo del Cauca. El 30 de marzo, Jaime Alonso Ocampo fue asesinado en la vereda Puente Fenicia (Riofrío), zona de influencia del narcotraficante Diego Montoya.</div>
+        <div class="card-detalle">
+          <strong>Víctimas en su territorio:</strong> ~20 (corregimiento Salónica)<br>
+          <strong>Corregimiento clave:</strong> Salónica — zona de la Hacienda Las Violetas<br>
+          <strong>Distancia a Trujillo:</strong> ~18 km
+        </div>
+      </div>
+
+      <!-- 14. BOLÍVAR -->
+      <div id="card-bolivar" class="card">
+        <div class="etiqueta et-zona">Municipio</div>
+        <div class="card-fecha">1986–1994</div>
+        <div class="card-titulo">Bolívar, Valle del Cauca</div>
+        <div class="card-desc">Tercer municipio del triángulo geográfico de la masacre, reconocido oficialmente por la CISVT. En el corregimiento de Naranjal (Bolívar), 15 de las 245 víctimas documentadas sufrieron crímenes de lesa humanidad. Las familias de Bolívar integran AFAVIT y participan en las peregrinaciones anuales al Parque Monumento. La violencia en Bolívar respondía al mismo designio criminal: control territorial de la alianza entre narcotráfico y fuerzas del Estado.</div>
+        <div class="card-detalle">
+          <strong>Víctimas en su territorio:</strong> ~15 (corregimiento Naranjal)<br>
+          <strong>Distancia a Trujillo:</strong> ~25 km<br>
+          <strong>Reconocimiento oficial:</strong> CISVT 1995, CECT 1997
+        </div>
+      </div>
+
+      <!-- 15. EL HOBO -->
+<div id="card-elhobo" class="card">
+  <div class="etiqueta et-violencia">Hallazgo del cuerpo</div>
+  <div class="card-fecha">Abril de 1990</div>
+  <div class="card-titulo">Inspección El Hobo — Roldanillo</div>
+  <div class="card-desc">
+    En la inspección El Hobo, municipio de Roldanillo, fue recuperado del río Cauca el cuerpo mutilado del padre Tiberio Fernández Mafla. Sus restos pudieron ser identificados gracias a un platino en una de sus piernas. El hallazgo confirmó las denuncias sobre las torturas y el uso sistemático del río Cauca como mecanismo de desaparición y ocultamiento de evidencias.
+  </div>
+  <div class="card-detalle">
+    <strong>Importancia:</strong> Único cuerpo emblemático recuperado e identificado.<br>
+    <strong>Método criminal:</strong> Uso del río Cauca para desaparecer víctimas.<br>
+    <strong>Impacto:</strong> El hallazgo convirtió al padre Tiberio en símbolo nacional de la masacre.
+  </div>
+</div>
+
+<!-- 16. CAÑÓN DE GARRAPATAS -->
+<div id="card-garrapatas" class="card">
+  <div class="etiqueta et-zona">Corredor estratégico</div>
+  <div class="card-fecha">1980s – actualidad</div>
+  <div class="card-titulo">Cañón de Garrapatas</div>
+  <div class="card-desc">
+    El Cañón de Garrapatas conecta el norte del Valle del Cauca con Chocó y el Pacífico. Históricamente ha sido un corredor estratégico para guerrillas, narcotráfico y grupos armados ilegales. La disputa por este territorio explica gran parte de la violencia que rodeó la masacre de Trujillo y que continúa hasta hoy.
+  </div>
+  <div class="card-detalle">
+    <strong>Actores armados:</strong> ELN, narcotráfico, Clan del Golfo y otros grupos ilegales.<br>
+    <strong>Importancia:</strong> Ruta estratégica hacia el Pacífico.<br>
+    <strong>Relación:</strong> El control territorial fue uno de los motores de la masacre.
+  </div>
+</div>
+
+<!-- 17. BATALLÓN PALACÉ -->
+<div id="card-palace" class="card">
+  <div class="etiqueta et-violencia">Responsabilidad estatal</div>
+  <div class="card-fecha">1990</div>
+  <div class="card-titulo">Batallón Palacé — Buga</div>
+  <div class="card-desc">
+    El Batallón Palacé de Buga fue una de las estructuras militares vinculadas con los hechos de la masacre. Desde allí se coordinaban operaciones contrainsurgentes contra el ELN. El mayor Alirio Urueña, uno de los principales responsables señalados por las víctimas y organismos de derechos humanos, hacía parte de esta unidad militar.
+  </div>
+  <div class="card-detalle">
+    <strong>Responsables señalados:</strong> Mayor Alirio Urueña y miembros de la Fuerza Pública.<br>
+    <strong>Operaciones:</strong> Plan Pesca y operaciones contrainsurgentes.<br>
+    <strong>Importancia:</strong> Evidencia de participación estatal en la masacre.
+  </div>
+</div>
+
+<!-- 18. TULUÁ -->
+<div id="card-tulua" class="card">
+  <div class="etiqueta et-violencia">Nodo institucional</div>
+  <div class="card-fecha">1990</div>
+  <div class="card-titulo">Tuluá — SIJIN y presencia institucional</div>
+  <div class="card-desc">
+    Varias víctimas desaparecidas fueron trasladadas inicialmente a instalaciones policiales en Tuluá antes de ser llevadas a centros clandestinos de tortura. El municipio también fue escenario del asesinato de Abundio Espinosa, amigo cercano del padre Tiberio, hecho que antecedió directamente a su secuestro y asesinato.
+  </div>
+  <div class="card-detalle">
+    <strong>Instituciones implicadas:</strong> SIJIN y organismos de inteligencia.<br>
+    <strong>Relación:</strong> Punto de tránsito y coordinación de operaciones ilegales.<br>
+    <strong>Hecho relevante:</strong> Funeral de Abundio Espinosa, último viaje del padre Tiberio.
+  </div>
+</div>
+
+<!-- 19. IMCA -->
+<div id="card-imca" class="card">
+  <div class="etiqueta et-afavit">Organización comunitaria</div>
+  <div class="card-fecha">Décadas de 1970–1980</div>
+  <div class="card-titulo">Instituto Mayor Campesino (IMCA)</div>
+  <div class="card-desc">
+    El Instituto Mayor Campesino de Buga fue un espacio clave en la formación social y comunitaria del padre Tiberio Fernández Mafla. Allí fortaleció su visión sobre cooperativismo, organización campesina y economía solidaria, ideas que luego impulsaría en Trujillo mediante cooperativas y empresas comunitarias.
+  </div>
+  <div class="card-detalle">
+    <strong>Relación con Tiberio:</strong> Formación en cooperativismo y liderazgo social.<br>
+    <strong>Legado:</strong> Inspiró las empresas comunitarias creadas en Trujillo.<br>
+    <strong>Importancia:</strong> Explica el proyecto social que los victimarios intentaron destruir.
+  </div>
+</div>
+
+<!-- 20. VENECIA -->
+<div id="card-venecia" class="card">
+  <div class="etiqueta et-zona">Violencia persistente</div>
+  <div class="card-fecha">1990–2025</div>
+  <div class="card-titulo">Venecia — Vereda El Edén</div>
+  <div class="card-desc">
+    El corregimiento de Venecia y la vereda El Edén siguen siendo escenarios de presencia armada y disputas territoriales décadas después de la masacre original. La persistencia del conflicto muestra cómo las dinámicas de violencia que afectaron a Trujillo no desaparecieron completamente.
+  </div>
+  <div class="card-detalle">
+    <strong>Actores recientes:</strong> ELN, EGC y disidencias armadas.<br>
+    <strong>Problemas:</strong> Enfrentamientos, control territorial y violencia rural.<br>
+    <strong>Relación:</strong> Continuidad histórica de la violencia regional.
+  </div>
+</div>
+
+<!-- 21. BOGOTÁ -->
+<div id="card-bogota" class="card">
+  <div class="etiqueta et-afavit">Reconocimiento jurídico</div>
+  <div class="card-fecha">1995 / 2016 / 2022</div>
+  <div class="card-titulo">Bogotá — Reconocimiento estatal</div>
+  <div class="card-desc">
+    En Bogotá se realizaron los principales actos institucionales de reconocimiento de responsabilidad del Estado colombiano por la masacre de Trujillo. En 1995 el gobierno aceptó parcialmente su responsabilidad, y años después amplió el reconocimiento a nuevas víctimas.
+  </div>
+  <div class="card-detalle">
+    <strong>Instituciones:</strong> Estado colombiano, CIDH y Tribunal Administrativo.<br>
+    <strong>Hitos:</strong> Reconocimiento estatal y reparación simbólica.<br>
+    <strong>Importancia:</strong> Primer reconocimiento oficial de responsabilidad estatal en un crimen de esta magnitud.
+  </div>
+</div>
+
+<!-- 22. EL DOVIO -->
+<div id="card-eldovio" class="card">
+  <div class="etiqueta et-violencia">Narcotráfico</div>
+  <div class="card-fecha">1980s–2002</div>
+  <div class="card-titulo">El Dovio — Iván Urdinola</div>
+  <div class="card-desc">
+    El Dovio fue el municipio de origen de Iván Urdinola Grajales, uno de los fundadores del Cartel del Norte del Valle y uno de los narcotraficantes relacionados con la masacre. Su estructura criminal consolidó el dominio del narcotráfico sobre el corredor del Cañón de Garrapatas.
+  </div>
+  <div class="card-detalle">
+    <strong>Actor clave:</strong> Iván Urdinola Grajales.<br>
+    <strong>Relación:</strong> Expansión del Cartel del Norte del Valle.<br>
+    <strong>Impacto:</strong> Consolidación del narcotráfico regional.
+  </div>
+</div>
+
+<!-- 23. ZARZAL -->
+<div id="card-zarzal" class="card">
+  <div class="etiqueta et-violencia">Captura</div>
+  <div class="card-fecha">1992</div>
+  <div class="card-titulo">Zarzal — Captura de Urdinola</div>
+  <div class="card-desc">
+    En Zarzal fue capturado Iván Urdinola en 1992 durante un operativo policial. Fue uno de los primeros grandes narcotraficantes relacionados con la masacre que enfrentó procesos judiciales, aunque años después moriría en prisión en circunstancias controvertidas.
+  </div>
+  <div class="card-detalle">
+    <strong>Fecha:</strong> 26 de abril de 1992.<br>
+    <strong>Lugar:</strong> Finca La Porcelana.<br>
+    <strong>Importancia:</strong> Primer gran golpe judicial contra uno de los responsables.
+  </div>
+</div>
+
+<!-- 24. LA VIGOROSA -->
+<div id="card-vigorosa" class="card">
+  <div class="etiqueta et-afavit">Origen del padre Tiberio</div>
+  <div class="card-fecha">1943</div>
+  <div class="card-titulo">Vereda La Vigorosa — Riofrío</div>
+  <div class="card-desc">
+    En esta vereda rural nació el padre Tiberio Fernández Mafla el 9 de abril de 1943. Décadas después se convertiría en líder comunitario, defensor de los campesinos y símbolo central de la memoria de la masacre de Trujillo.
+  </div>
+  <div class="card-detalle">
+    <strong>Nacimiento:</strong> 9 de abril de 1943.<br>
+    <strong>Legado:</strong> Organización campesina y defensa comunitaria.<br>
+    <strong>Importancia:</strong> Punto de origen del principal símbolo de resistencia de Trujillo.
+  </div>
+</div>
+
+    </div><!-- /panel-body -->
+
+    <div id="leyenda">
+      <h3>Referencias del mapa</h3>
+      <div class="ley-items">
+        <div class="ley-item"><span class="dot" style="background:#B5372A"></span> Sitios del crimen</div>
+        <div class="ley-item"><span class="dot" style="background:#17654C"></span> Memoria / AFAVIT</div>
+        <div class="ley-item">
+          <svg width="12" height="12" viewBox="0 0 24 24" style="flex-shrink:0"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="#C8900A" stroke="white" stroke-width="1.5"/></svg>
+          Parque / AFAVIT
+        </div>
+        <div class="ley-item"><span class="dot" style="background:#6B6860"></span> Municipios</div>
+      </div>
+    </div>
+
+  </div><!-- /panel -->
+</div><!-- /layout -->
+
+<script>
+// Leaflet ya está cargado en <head>; aquí construimos el mapa
+
+const MARCADORES = [
+
+  // ── MUNICIPIOS ──
+  {
+    id: 'bolivar',
+    lat: 4.3388,
+    lng: -76.1835,
+    color: '#6B6860', radio: 11, tipo: 'circulo',
+    titulo: 'Bolívar',
+    sub: 'Municipio — zona de la masacre',
+    fecha: '1986–1994'
+  },
+
+  {
+    id: 'riofrio',
+    lat: 4.1575,
+    lng: -76.2880,
+    color: '#6B6860', radio: 11, tipo: 'circulo',
+    titulo: 'Riofrío',
+    sub: 'Municipio — zona de la masacre',
+    fecha: '1986–1994'
+  },
+
+  // ── LA SONORA ──
+  {
+    id: 'sonora',
+    lat: 4.2668,
+    lng: -76.2875,
+    color: '#B5372A', radio: 12, tipo: 'circulo',
+    titulo: 'La Sonora',
+    sub: 'Emboscada y desapariciones forzadas',
+    fecha: '29 mar – 1 abr 1990'
+  },
+
+  // ── HACIENDA LAS VIOLETAS ──
+  {
+    id: 'violetas',
+    lat: 4.2440,
+    lng: -76.3015,
+    color: '#B5372A', radio: 13, tipo: 'circulo',
+    titulo: 'Hda. Las Violetas',
+    sub: '"La Peladora" — Centro de tortura',
+    fecha: '1–2 abr 1990'
+  },
+
+  // ── EBANISTAS ──
+  {
+    id: 'ebanistas',
+    lat: 4.2129,
+    lng: -76.3192,
+    color: '#B5372A', radio: 10, tipo: 'circulo',
+    titulo: 'Taller de ebanistería',
+    sub: 'Esquina plaza principal — 2 de abril de 1990',
+    fecha: '2 abr 1990'
+  },
+
+  // ── HACIENDA VILLA PAOLA ──
+  {
+    id: 'villapaola',
+    lat: 4.2060,
+    lng: -76.3520,
+    color: '#7A1510', radio: 14, tipo: 'circulo',
+    titulo: 'Hda. Villa Paola',
+    sub: 'Centro de tortura del Alacrán',
+    fecha: 'Abr 1990 / May 1991'
+  },
+
+  // ── PADRE TIBERIO ──
+  {
+    id: 'tiberio',
+    lat: 4.2131,
+    lng: -76.3188,
+    color: '#B5372A', radio: 12, tipo: 'circulo',
+    titulo: 'Iglesia San Pedro Apóstol',
+    sub: 'Parroquia del Padre Tiberio Fernández Mafla',
+    fecha: '17 abr 1990'
+  },
+
+  // ── RÍO CAUCA ──
+  {
+    id: 'rio',
+    lat: 4.1900,
+    lng: -76.3850,
+    color: '#B5372A', radio: 12, tipo: 'circulo',
+    titulo: 'Río Cauca',
+    sub: 'Fosa común — cuerpos arrojados',
+    fecha: '1990–1994'
+  },
+
+  // ── JUAN GIRALDO ──
+  {
+    id: 'giraldo',
+    lat: 4.2370,
+    lng: -76.3290,
+    color: '#B5372A', radio: 10, tipo: 'circulo',
+    titulo: 'Zona rural norte de Trujillo',
+    sub: 'Retención de Juan Giraldo Molina',
+    fecha: '8 abr 1990'
+  },
+
+  // ── MARCHA CAMPESINA ──
+  {
+    id: 'marcha',
+    lat: 4.2126,
+    lng: -76.3190,
+    color: '#B5372A', radio: 10, tipo: 'circulo',
+    titulo: 'Concejo Municipal',
+    sub: 'Marcha campesina reprimida — 1989',
+    fecha: '29 abr 1989'
+  },
+
+  // ── DANIEL ARCILA ──
+  {
+    id: 'arcila',
+    lat: 4.2128,
+    lng: -76.3194,
+    color: '#B5372A', radio: 10, tipo: 'circulo',
+    titulo: 'Plaza principal de Trujillo',
+    sub: 'Última retención de Daniel Arcila Cardona',
+    fecha: '5 may 1991'
+  },
+
+  // ── AFAVIT ──
+  {
+    id: 'afavit',
+    lat: 4.2134,
+    lng: -76.3220,
+    color: '#17654C', radio: 15, tipo: 'estrella',
+    titulo: 'AFAVIT — Casa de la Memoria',
+    sub: '★ Resistencia, verdad y reparación',
+    fecha: 'Desde 1995'
+  },
+
+  // ── CISVT ──
+  {
+    id: 'cisvt',
+    lat: 4.2125,
+    lng: -76.3195,
+    color: '#17654C', radio: 10, tipo: 'circulo',
+    titulo: 'CISVT — Reconocimiento del Estado',
+    sub: 'Primer informe oficial de responsabilidad',
+    fecha: '1995'
+  },
+
+  // ── PARQUE MONUMENTO ──
+  {
+    id: 'parque',
+    lat: 4.2136,
+    lng: -76.3223,
+    color: '#C8900A', radio: 16, tipo: 'estrella',
+    titulo: 'Parque Monumento a las Víctimas',
+    sub: '★ 235 osarios — Memoria y reparación simbólica',
+    fecha: '2000–2002'
+  },
+    // ── ROLDANILLO / EL HOBO ──
+  {
+    id: 'elhobo',
+    lat: 4.4756,
+    lng: -76.1556,
+    color: '#B5372A',
+    radio: 11,
+    tipo: 'circulo',
+    titulo: 'Inspección El Hobo — Roldanillo',
+    sub: 'Hallazgo del cuerpo del padre Tiberio',
+    fecha: 'Abril de 1990'
+  },
+
+  // ── CAÑÓN DE GARRAPATAS ──
+  {
+    id: 'garrapatas',
+    lat: 4.4500,
+    lng: -76.5500,
+    color: '#6B6860',
+    radio: 13,
+    tipo: 'circulo',
+    titulo: 'Cañón de Garrapatas',
+    sub: 'Corredor estratégico del conflicto armado',
+    fecha: '1980s–2025'
+  },
+
+  // ── BATALLÓN PALACÉ ──
+  {
+    id: 'palace',
+    lat: 3.9000,
+    lng: -76.3000,
+    color: '#7A1510',
+    radio: 12,
+    tipo: 'circulo',
+    titulo: 'Batallón Palacé — Buga',
+    sub: 'Nodo militar vinculado a la masacre',
+    fecha: '1990'
+  },
+
+  // ── TULUÁ ──
+  {
+    id: 'tulua',
+    lat: 4.0850,
+    lng: -76.1983,
+    color: '#7A1510',
+    radio: 11,
+    tipo: 'circulo',
+    titulo: 'Tuluá — SIJIN',
+    sub: 'Traslado y coordinación institucional',
+    fecha: '1990'
+  },
+
+  // ── IMCA BUGA ──
+  {
+    id: 'imca',
+    lat: 3.9050,
+    lng: -76.2980,
+    color: '#17654C',
+    radio: 11,
+    tipo: 'circulo',
+    titulo: 'Instituto Mayor Campesino (IMCA)',
+    sub: 'Formación comunitaria del padre Tiberio',
+    fecha: 'Décadas de 1970–1980'
+  },
+
+  // ── VENECIA / EL EDÉN ──
+  {
+    id: 'venecia',
+    lat: 4.0900,
+    lng: -76.4200,
+    color: '#6B6860',
+    radio: 11,
+    tipo: 'circulo',
+    titulo: 'Venecia — Vereda El Edén',
+    sub: 'Persistencia reciente del conflicto armado',
+    fecha: '1990–2025'
+  },
+
+  // ── BOGOTÁ / RECONOCIMIENTO ──
+  {
+    id: 'bogota',
+    lat: 4.7110,
+    lng: -74.0721,
+    color: '#17654C',
+    radio: 13,
+    tipo: 'estrella',
+    titulo: 'Reconocimiento estatal — Bogotá',
+    sub: 'Aceptación oficial de responsabilidad',
+    fecha: '1995 / 2016 / 2022'
+  },
+
+  // ── EL DOVIO ──
+  {
+    id: 'eldovio',
+    lat: 4.5147,
+    lng: -76.6458,
+    color: '#7A1510',
+    radio: 11,
+    tipo: 'circulo',
+    titulo: 'El Dovio — Iván Urdinola',
+    sub: 'Origen de uno de los jefes narcotraficantes',
+    fecha: '1980s–2002'
+  },
+
+  // ── ZARZAL ──
+  {
+    id: 'zarzal',
+    lat: 4.3889,
+    lng: -76.0725,
+    color: '#7A1510',
+    radio: 11,
+    tipo: 'circulo',
+    titulo: 'Zarzal — Captura de Urdinola',
+    sub: 'Captura de Iván Urdinola en 1992',
+    fecha: '1992'
+  },
+
+  // ── VEREDA LA VIGOROSA ──
+  {
+    id: 'vigorosa',
+    lat: 4.0200,
+    lng: -76.3100,
+    color: '#17654C',
+    radio: 10,
+    tipo: 'circulo',
+    titulo: 'Vereda La Vigorosa',
+    sub: 'Lugar de nacimiento del padre Tiberio',
+    fecha: '1943'
+  }
+];
+// ── CREAR HTML DEL MARCADOR ──
+function crearIconoHTML(m) {
+  const s = m.radio * 2;
+
+  if (m.tipo === 'estrella') {
+    const total = s + 8;
+    return `<div style="
+      width:${total}px; height:${total}px;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer;
+      filter:drop-shadow(0 2px 6px rgba(0,0,0,0.55));
+      transition:transform 0.15s ease;
+    " onmouseenter="this.style.transform='scale(1.3)'"
+       onmouseleave="this.style.transform='scale(1)'">
+      <svg width="${total}" height="${total}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <polygon
+          points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+          fill="${m.color}"
+          stroke="white"
+          stroke-width="1.8"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </div>`;
+  }
+
+  return `<div style="
+    width:${s}px; height:${s}px;
+    border-radius:50%;
+    background:${m.color};
+    border:2.5px solid rgba(255,255,255,0.92);
+    box-shadow:0 2px 8px rgba(0,0,0,0.42);
+    cursor:pointer;
+    transition:transform 0.15s ease, box-shadow 0.15s ease;
+  " onmouseenter="this.style.transform='scale(1.3)';this.style.boxShadow='0 4px 14px rgba(0,0,0,0.55)'"
+     onmouseleave="this.style.transform='scale(1)';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.42)'"></div>`;
+}
+
+// ── MOSTRAR TARJETA ──
+function mostrarCard(id, tituloPanel) {
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('activa'));
+  const el = document.getElementById('card-' + id);
+  if (el) el.classList.add('activa');
+  const h2 = document.getElementById('panel-titulo');
+  if (h2) h2.textContent = tituloPanel || id;
+}
+
+// ── INICIALIZAR MAPA ──
+const map = L.map('map', { zoomControl: true, scrollWheelZoom: true })
+             .setView([4.225, -76.322], 12);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
+  maxZoom: 18
+}).addTo(map);
+
+// ── AÑADIR MARCADORES ──
+MARCADORES.forEach(m => {
+  const size = m.tipo === 'estrella' ? m.radio * 2 + 8 : m.radio * 2;
+  const anchor = Math.round(size / 2);
+
+  const icon = L.divIcon({
+    className: '',
+    html: crearIconoHTML(m),
+    iconSize:   [size, size],
+    iconAnchor: [anchor, anchor]
+  });
+
+  const marker = L.marker([m.lat, m.lng], { icon }).addTo(map);
+
+  marker.bindPopup(`
+    <div class="popup-titulo">${m.titulo}</div>
+    <div class="popup-fecha">${m.fecha}</div>
+    <div class="popup-sub">${m.sub}</div>
+  `);
+
+  marker.on('click', () => mostrarCard(m.id, m.titulo));
+});
+</script>
+</body>
+</html>
