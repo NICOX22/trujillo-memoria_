@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Source+Serif+4:wght@300;400;500&display=swap" rel="stylesheet">
 
+
 <style>
   :root {
     --rojo:          #B5372A;
@@ -188,7 +189,7 @@
     border-radius: 20px;
     margin-bottom: 10px;
   }
-  .et-violencia { background: var(--rojo-claro);  color: #8A2010; }
+  .et-violencia { background: var(--rojo-claro);  color: var(--rojo); }
   .et-afavit    { background: var(--verde-claro); color: var(--verde); }
   .et-memoria   { background: var(--morado-claro);color: var(--morado); }
   .et-zona      { background: var(--gris-claro);  color: var(--gris); }
@@ -688,8 +689,8 @@ const MARCADORES = [
   // ── LA SONORA ──
   {
     id: 'sonora',
-    lat: 4.2668,
-    lng: -76.2875,
+    lat: 4.230949904471233,
+    lng: -76.38975268427582,
     color: '#B5372A', radio: 12, tipo: 'circulo',
     titulo: 'La Sonora',
     sub: 'Emboscada y desapariciones forzadas',
@@ -699,8 +700,9 @@ const MARCADORES = [
   // ── HACIENDA LAS VIOLETAS ──
   {
     id: 'violetas',
-    lat: 4.2440,
-    lng: -76.3015,
+    
+    lat: 4.142780237423888,
+    lng: -76.38579430696511,
     color: '#B5372A', radio: 13, tipo: 'circulo',
     titulo: 'Hda. Las Violetas',
     sub: '"La Peladora" — Centro de tortura',
@@ -743,8 +745,8 @@ const MARCADORES = [
   // ── RÍO CAUCA ──
   {
     id: 'rio',
-    lat: 4.1900,
-    lng: -76.3850,
+    lat: 4.118938489945324,
+    lng: -76.2751620797092,
     color: '#B5372A', radio: 12, tipo: 'circulo',
     titulo: 'Río Cauca',
     sub: 'Fosa común — cuerpos arrojados',
@@ -819,8 +821,8 @@ const MARCADORES = [
     // ── ROLDANILLO / EL HOBO ──
   {
     id: 'elhobo',
-    lat: 4.4756,
-    lng: -76.1556,
+    lat: 4.38791829404796,
+    lng: -76.1483465347157,
     color: '#B5372A',
     radio: 11,
     tipo: 'circulo',
@@ -832,8 +834,8 @@ const MARCADORES = [
   // ── CAÑÓN DE GARRAPATAS ──
   {
     id: 'garrapatas',
-    lat: 4.4500,
-    lng: -76.5500,
+    lat: 4.490349408619225,
+    lng: -76.37481755611584,
     color: '#6B6860',
     radio: 13,
     tipo: 'circulo',
@@ -883,9 +885,9 @@ const MARCADORES = [
 
   // ── VENECIA / EL EDÉN ──
   {
-    id: 'venecia',
-    lat: 4.0900,
-    lng: -76.4200,
+    id: 'venecia',   
+    lat: 4.193853514092467,
+    lng: -76.39098711264836,
     color: '#6B6860',
     radio: 11,
     tipo: 'circulo',
@@ -910,8 +912,8 @@ const MARCADORES = [
   // ── EL DOVIO ──
   {
     id: 'eldovio',
-    lat: 4.5147,
-    lng: -76.6458,
+    lat:4.510553691605137,
+    lng: -76.23695485586025,
     color: '#7A1510',
     radio: 11,
     tipo: 'circulo',
@@ -936,8 +938,8 @@ const MARCADORES = [
   // ── VEREDA LA VIGOROSA ──
   {
     id: 'vigorosa',
-    lat: 4.0200,
-    lng: -76.3100,
+    lat: 4.139955220412818,
+    lng: -76.33147606563439,
     color: '#17654C',
     radio: 10,
     tipo: 'circulo',
@@ -996,10 +998,14 @@ function mostrarCard(id, tituloPanel) {
 // ── INICIALIZAR MAPA ──
 const map = L.map('map', { zoomControl: true, scrollWheelZoom: true })
              .setView([4.225, -76.322], 12);
-
+map.on('click', function(e) {
+   console.log(e.latlng);
+});
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
   maxZoom: 18
+
+  
 }).addTo(map);
 
 // ── AÑADIR MARCADORES ──
